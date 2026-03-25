@@ -41,7 +41,7 @@ body{font-family:var(--mo);background:var(--bg0);color:var(--t0);min-height:100v
 .app{display:grid;grid-template-rows:48px 1fr;min-height:100vh;}
 .main{display:grid;grid-template-columns:var(--sb-w,300px) 1fr;height:calc(100vh - 48px);transition:grid-template-columns .15s;position:relative;}
 .main.sb-collapsed{grid-template-columns:0px 1fr;}
-.sidebar{background:var(--bg1);border-right:1px solid var(--bd2);overflow-y:auto;display:flex;flex-direction:column;position:relative;min-width:0;overflow:hidden;transition:opacity .15s;}
+.sidebar{background:var(--bg1);border-right:1px solid var(--bd2);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;position:relative;min-width:0;transition:opacity .15s;}
 .main.sb-collapsed .sidebar{opacity:0;}
 .content{overflow-y:auto;background:var(--bg0);}
 .sb-resize{position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;z-index:20;background:transparent;}
@@ -371,12 +371,18 @@ textarea{background:var(--bg2);border:1px solid var(--bd2);border-radius:3px;col
     <div class="sec-hdr" onclick="toggleSec('addpos')"><span class="sec-title">Add Trade</span><span class="sec-tog open" id="tog-addpos">▶</span></div>
     <div class="sec-body" id="sec-addpos">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">STRIKE</div><input type="number" id="ap-strike" value="6600" step="25" style="width:100%;"></div>
-        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">EXPIRY</div><select id="ap-expiry"><option value="APR">APR-26</option><option value="MAY">MAY-26</option><option value="JUN" selected>JUN-26</option><option value="SEP">SEP-26</option><option value="DEC">DEC-26</option></select></div>
+        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">STRIKE</div><input type="number" id="ap-strike" value="6600" step="25" style="width:100%;" oninput="updateApPrice()"></div>
+        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">EXPIRY</div><select id="ap-expiry" onchange="updateApPrice()"><option value="APR">APR-26</option><option value="MAY">MAY-26</option><option value="JUN" selected>JUN-26</option><option value="SEP">SEP-26</option><option value="DEC">DEC-26</option></select></div>
         <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">SIDE</div><select id="ap-side"><option value="1">Long +</option><option value="-1">Short −</option></select></div>
         <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">SIZE (lots)</div><input type="number" id="ap-size" value="0.01" step="0.01" style="width:100%;"></div>
-        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">ENTRY PX</div><input type="number" id="ap-open" value="0" step="0.01" style="width:100%;"></div>
-        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">TYPE</div><select id="ap-type"><option value="put">Put</option><option value="call">Call</option></select></div>
+        <div style="grid-column:1/-1;background:var(--bg3);border:1px solid var(--bd2);border-radius:3px;padding:5px 8px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:7px;color:var(--t3);text-transform:uppercase;">BS Price</span>
+          <span id="ap-preview" style="font-size:13px;font-weight:600;color:var(--ac);">—</span>
+          <span id="ap-iv-preview" style="font-size:8px;color:var(--t2);">IV —</span>
+          <span id="ap-dte-preview" style="font-size:8px;color:var(--t3);">DTE —</span>
+        </div>
+        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">ENTRY PX <span style="color:var(--t3);font-size:6px;">(0=BS)</span></div><input type="number" id="ap-open" value="0" step="0.01" style="width:100%;"></div>
+        <div><div style="font-size:7px;color:var(--t3);margin-bottom:2px;">TYPE</div><select id="ap-type" onchange="updateApPrice()"><option value="put">Put</option><option value="call">Call</option></select></div>
         <div style="grid-column:1/-1;display:flex;gap:4px;margin-top:2px;">
           <button class="btn pri" onclick="addPosition()" style="flex:1;">+ Add Trade</button>
           <button class="btn sm danger" onclick="clearNewPositions()">✕ New</button>
@@ -1173,6 +1179,22 @@ function addFromChain(strike,expiry,type,side,price){
 }
 
 // POSITION MGMT
+function updateApPrice(){
+  const strike=+document.getElementById('ap-strike').value;
+  const expiry=document.getElementById('ap-expiry').value;
+  const type=document.getElementById('ap-type').value;
+  const prev=document.getElementById('ap-preview');
+  const ivPrev=document.getElementById('ap-iv-preview');
+  const dtePrev=document.getElementById('ap-dte-preview');
+  if(!prev)return;
+  if(!strike||strike<=0){prev.textContent='—';ivPrev.textContent='IV —';dtePrev.textContent='DTE —';return;}
+  const g=pricePos({strike,expiry,type,side:1,size:1},state.spot);
+  const iv=getIV(strike,expiry)*100;
+  const dte=getDTE(expiry);
+  prev.textContent='$'+g.price.toFixed(2);
+  ivPrev.textContent='IV '+iv.toFixed(1)+'%';
+  dtePrev.textContent='DTE '+dte+'d';
+}
 function addPosition(){
   const strike=+document.getElementById('ap-strike').value,expiry=document.getElementById('ap-expiry').value;
   const side=+document.getElementById('ap-side').value,size=+document.getElementById('ap-size').value;
@@ -1236,7 +1258,7 @@ function toggleSec(id){const s=document.getElementById('sec-'+id),t=document.get
 function setStatus(msg){document.getElementById('statusbar').textContent=msg;}
 function showToast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function toggleSidebar(){const sb=document.getElementById('sidebar');sb.classList.toggle('open');}
-function updateAll(){updateSidebar();updateCharts();const a=document.querySelector('.tab.active');if(a){const t=a.id.replace('tab-','');if(t==='greeks')updateGreeksTable();if(t==='vol')updateVolSurface();if(t==='insights'){updateInsights();updateDecayCharts();}if(t==='stress')updateStress();if(t==='chain')renderChain();if(t==='book')renderBlotter();}}
+function updateAll(){updateSidebar();updateCharts();updateApPrice();const a=document.querySelector('.tab.active');if(a){const t=a.id.replace('tab-','');if(t==='greeks')updateGreeksTable();if(t==='vol')updateVolSurface();if(t==='insights'){updateInsights();updateDecayCharts();}if(t==='stress')updateStress();if(t==='chain')renderChain();if(t==='book')renderBlotter();}}
 
 // ── BLOTTER (Book tab) ────────────────────────────────────────────
 function renderBlotter(){
