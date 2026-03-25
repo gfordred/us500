@@ -1182,17 +1182,99 @@ function shiftAllIV(d){['APR','MAY','JUN','SEP','DEC'].forEach(e=>{const nv=Math
 function resetIV(){['APR','MAY','JUN','SEP','DEC'].forEach(e=>{state.atmIV[e]=BASE_IV[e];const sl=document.getElementById('sl-iv-'+e),cv=document.getElementById('cv-iv-'+e);if(sl)sl.value=BASE_IV[e];if(cv)cv.textContent=BASE_IV[e].toFixed(1)+'%';});updateAll();}
 function setScen(s){state.scenario=s;['base','buyPuts','spread','custom'].forEach(k=>{const b=document.getElementById('scen-'+k);if(b)b.classList.toggle('active',k===s);});updateAll();}
 function showTab(t){
-  ['charts','greeks','vol','chain','insights','stress'].forEach(k=>{document.getElementById('pane-'+k).style.display=k===t?'block':'none';document.getElementById('tab-'+k).classList.toggle('active',k===t);});
+  ['charts','greeks','vol','chain','insights','stress','book'].forEach(k=>{const pn=document.getElementById('pane-'+k);const tb=document.getElementById('tab-'+k);if(pn)pn.style.display=k===t?'block':'none';if(tb)tb.classList.toggle('active',k===t);});
   if(t==='greeks')updateGreeksTable();
   if(t==='vol')updateVolSurface();
   if(t==='chain')renderChain();
   if(t==='insights'){updateInsights();updateDecayCharts();}
   if(t==='stress')updateStress();
+  if(t==='book')renderBlotter();
 }
 function toggleSec(id){const s=document.getElementById('sec-'+id),t=document.getElementById('tog-'+id);if(s.style.display==='none'){s.style.display='';t.classList.add('open');}else{s.style.display='none';t.classList.remove('open');}}
 function setStatus(msg){document.getElementById('statusbar').textContent=msg;}
 function toggleSidebar(){const sb=document.getElementById('sidebar');sb.classList.toggle('open');}
 function updateAll(){updateSidebar();updateCharts();const a=document.querySelector('.tab.active');if(a){const t=a.id.replace('tab-','');if(t==='greeks')updateGreeksTable();if(t==='vol')updateVolSurface();if(t==='insights'){updateInsights();updateDecayCharts();}if(t==='stress')updateStress();if(t==='chain')renderChain();if(t==='book')renderBlotter();}}
+
+// ── BLOTTER (Book tab) ────────────────────────────────────────────
+function renderBlotter(){
+  const el=document.getElementById('blotter-tbody');if(!el)return;
+  const S=state.spot,rows=calcBook(state.positions,S),g=sumG(rows);
+  const bc=document.getElementById('blotter-count');if(bc)bc.textContent=rows.length;
+  el.innerHTML=rows.map((r,i)=>{
+    if(editingId===r.id){
+      const d=editDraft;
+      return `<tr class="blotter-row editing">
+        <td style="text-align:center;">${i+1}</td>
+        <td><select class="edit-inp" onchange="editDraft.expiry=this.value">${VALID_EXPIRIES.map(e=>`<option${e===d.expiry?' selected':''}>${e}</option>`).join('')}</select></td>
+        <td><select class="edit-inp" onchange="editDraft.type=this.value"><option${d.type==='put'?' selected':''}>put</option><option${d.type==='call'?' selected':''}>call</option></select></td>
+        <td><input type="number" class="edit-inp" value="${d.strike}" onchange="editDraft.strike=+this.value" style="width:60px;"></td>
+        <td><select class="edit-inp" onchange="editDraft.side=+this.value"><option value="1"${d.side===1?' selected':''}>+1</option><option value="-1"${d.side===-1?' selected':''}>-1</option></select></td>
+        <td><input type="number" class="edit-inp" value="${d.size}" step="0.01" onchange="editDraft.size=+this.value" style="width:50px;"></td>
+        <td><input type="number" class="edit-inp" value="${d.open}" step="0.01" onchange="editDraft.open=+this.value" style="width:60px;"></td>
+        <td colspan="7"></td>
+        <td style="text-align:right;font-weight:500;color:${col(r.pnl)};">$${r.pnl.toFixed(0)}</td>
+        <td style="text-align:center;white-space:nowrap;">
+          <button class="act-btn save" onclick="saveEdit()">Save</button>
+          <button class="act-btn cancel" onclick="cancelEdit()">Cancel</button>
+        </td></tr>`;
+    }
+    const sideLabel=r.side>0?'LONG':'SHORT';
+    const sideCls=r.side>0?'badge-long':'badge-short';
+    return `<tr class="blotter-row${r.isNew?' isnew':''}">
+      <td style="text-align:center;color:var(--t3);">${i+1}</td>
+      <td><span class="tag tag-${r.expiry}">${r.expiry}</span></td>
+      <td style="text-align:center;"><span class="tag tag-${r.type==='call'?'c':'p'}">${r.type[0].toUpperCase()}</span></td>
+      <td>${r.strike}</td>
+      <td style="text-align:center;"><span class="badge ${sideCls}">${sideLabel}</span></td>
+      <td>${r.size.toFixed(2)}</td>
+      <td style="color:var(--t2);">${r.open.toFixed(2)}</td>
+      <td style="color:var(--t2);">${r.bsPrice.toFixed(2)}</td>
+      <td style="color:var(--ac);">${r.iv.toFixed(1)}%</td>
+      <td>${r.dte}d</td>
+      <td style="color:${col(r.netD)};">${r.netD.toFixed(3)}</td>
+      <td>${(r.netG*100).toFixed(4)}</td>
+      <td style="color:${col(r.netV)};">${r.netV.toFixed(3)}</td>
+      <td style="color:${col(r.netT)};">${r.netT.toFixed(3)}</td>
+      <td style="font-weight:500;color:${col(r.pnl)};">$${r.pnl.toFixed(0)}</td>
+      <td style="text-align:center;white-space:nowrap;">
+        <button class="act-btn edit" onclick="beginEdit(${r.id})">Edit</button>
+        <button class="act-btn del" onclick="deletePosition(${r.id})">Del</button>
+      </td></tr>`;
+  }).join('');
+  const foot=document.getElementById('blotter-tfoot');
+  if(foot)foot.innerHTML=`<tr style="font-weight:600;border-top:1px solid var(--bd);">
+    <td colspan="7" style="padding:4px 6px;color:var(--t2);font-size:9px;">TOTAL (${rows.length} legs)</td>
+    <td></td><td></td><td></td>
+    <td style="color:${col(g.D)};">${g.D.toFixed(3)}</td>
+    <td style="color:${col(g.G)};">${(g.G*100).toFixed(4)}</td>
+    <td style="color:${col(g.V)};">${g.V.toFixed(3)}</td>
+    <td style="color:${col(g.T)};">${g.T.toFixed(3)}</td>
+    <td style="color:${col(g.PNL)};">$${g.PNL.toFixed(0)}</td>
+    <td></td></tr>`;
+}
+
+function beginEdit(id){
+  const p=state.positions.find(x=>x.id===id);if(!p)return;
+  editingId=id;
+  editDraft={strike:p.strike,expiry:p.expiry,type:p.type,side:p.side,size:p.size,open:p.open};
+  renderBlotter();
+}
+function saveEdit(){
+  const errs=validatePositionDraft(editDraft);
+  if(errs.length){showToast(errs[0]);return;}
+  const p=state.positions.find(x=>x.id===editingId);
+  if(p){Object.assign(p,{strike:+editDraft.strike,expiry:editDraft.expiry,type:editDraft.type,side:+editDraft.side,size:Math.abs(+editDraft.size),open:+editDraft.open});}
+  editingId=null;editDraft={};
+  showToast('Position updated');
+  updateAll();
+}
+function cancelEdit(){editingId=null;editDraft={};renderBlotter();}
+function deletePosition(id){
+  state.positions=state.positions.filter(p=>p.id!==id);
+  if(editingId===id){editingId=null;editDraft={};}
+  showToast('Position removed');
+  updateAll();
+}
 
 // MOBILE TOPBAR TOGGLE
 function initMobile(){if(window.innerWidth<=768){const b=document.getElementById('mob-tog');if(b)b.style.display='flex';}}
