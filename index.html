@@ -1192,6 +1192,7 @@ function showTab(t){
 }
 function toggleSec(id){const s=document.getElementById('sec-'+id),t=document.getElementById('tog-'+id);if(s.style.display==='none'){s.style.display='';t.classList.add('open');}else{s.style.display='none';t.classList.remove('open');}}
 function setStatus(msg){document.getElementById('statusbar').textContent=msg;}
+function showToast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function toggleSidebar(){const sb=document.getElementById('sidebar');sb.classList.toggle('open');}
 function updateAll(){updateSidebar();updateCharts();const a=document.querySelector('.tab.active');if(a){const t=a.id.replace('tab-','');if(t==='greeks')updateGreeksTable();if(t==='vol')updateVolSurface();if(t==='insights'){updateInsights();updateDecayCharts();}if(t==='stress')updateStress();if(t==='chain')renderChain();if(t==='book')renderBlotter();}}
 
@@ -1205,17 +1206,17 @@ function renderBlotter(){
       const d=editDraft;
       return `<tr class="blotter-row editing">
         <td style="text-align:center;">${i+1}</td>
-        <td><select class="edit-inp" onchange="editDraft.expiry=this.value">${VALID_EXPIRIES.map(e=>`<option${e===d.expiry?' selected':''}>${e}</option>`).join('')}</select></td>
-        <td><select class="edit-inp" onchange="editDraft.type=this.value"><option${d.type==='put'?' selected':''}>put</option><option${d.type==='call'?' selected':''}>call</option></select></td>
-        <td><input type="number" class="edit-inp" value="${d.strike}" onchange="editDraft.strike=+this.value" style="width:60px;"></td>
-        <td><select class="edit-inp" onchange="editDraft.side=+this.value"><option value="1"${d.side===1?' selected':''}>+1</option><option value="-1"${d.side===-1?' selected':''}>-1</option></select></td>
-        <td><input type="number" class="edit-inp" value="${d.size}" step="0.01" onchange="editDraft.size=+this.value" style="width:50px;"></td>
-        <td><input type="number" class="edit-inp" value="${d.open}" step="0.01" onchange="editDraft.open=+this.value" style="width:60px;"></td>
+        <td><select class="edit-select" onchange="editDraft.expiry=this.value">${VALID_EXPIRIES.map(e=>`<option${e===d.expiry?' selected':''}>${e}</option>`).join('')}</select></td>
+        <td><select class="edit-select" onchange="editDraft.type=this.value"><option${d.type==='put'?' selected':''}>put</option><option${d.type==='call'?' selected':''}>call</option></select></td>
+        <td><input type="number" class="edit-input" value="${d.strike}" onchange="editDraft.strike=+this.value" style="width:60px;"></td>
+        <td><select class="edit-select" onchange="editDraft.side=+this.value"><option value="1"${d.side===1?' selected':''}>+1</option><option value="-1"${d.side===-1?' selected':''}>-1</option></select></td>
+        <td><input type="number" class="edit-input" value="${d.size}" step="0.01" onchange="editDraft.size=+this.value" style="width:50px;"></td>
+        <td><input type="number" class="edit-input" value="${d.open}" step="0.01" onchange="editDraft.open=+this.value" style="width:60px;"></td>
         <td colspan="7"></td>
         <td style="text-align:right;font-weight:500;color:${col(r.pnl)};">$${r.pnl.toFixed(0)}</td>
         <td style="text-align:center;white-space:nowrap;">
-          <button class="act-btn save" onclick="saveEdit()">Save</button>
-          <button class="act-btn cancel" onclick="cancelEdit()">Cancel</button>
+          <button class="act-btn sav" onclick="saveEdit()">Save</button>
+          <button class="act-btn can" onclick="cancelEdit()">Cancel</button>
         </td></tr>`;
     }
     const sideLabel=r.side>0?'LONG':'SHORT';
